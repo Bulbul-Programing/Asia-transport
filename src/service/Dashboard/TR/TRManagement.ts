@@ -3,7 +3,7 @@
 
 import { serverFetch } from "@/lib/server-fetch";
 import { TRPayload } from "@/types/Dashboard/TRType";
-import { createMultipleTRValidationSchema } from "@/zod/Dashboard/TR.validation";
+import { createMultipleTRValidationSchema, createTRValidationSchema } from "@/zod/Dashboard/TR.validation";
 import { revalidateTag } from "next/cache";
 
 export const getAllTR = async (queryString?: string) => {
@@ -88,9 +88,50 @@ export const createTR = async (_prevState: unknown, formData: FormData): Promise
     }
 }
 
-export const updateTR = async (_currentStatus: any, formData: FormData): Promise<any> => {
+export const updateTR = async (TRID: string, _currentStatus: any, formData: FormData): Promise<any> => {
     try {
+        console.log(TRID);
+        const raw = formData.get("updateTRsJson");
+        console.log(raw);
+        if (!raw || typeof raw !== "string") {
+            return { success: false, message: "No TR data received" };
+        }
 
+        let trs: TRPayload;
+        try {
+            trs = JSON.parse(raw);
+        } catch {
+            return { success: false, message: "Invalid TR data" };
+        }
+
+        const validatedPayload: any = createTRValidationSchema.safeParse(trs)
+        if (!validatedPayload.success) {
+            return {
+                success: false,
+                errors: validatedPayload.error.issues.map((issue: any) => {
+                    return {
+                        field: issue.path[0],
+                        message: issue.message,
+                    }
+                })
+            }
+        }
+
+        const res = await serverFetch.patch(`/tr/${TRID}`, {
+            body: JSON.stringify(validatedPayload.data),
+            headers: {
+                "Content-Type": "application/json",
+            }
+        })
+
+        const result = await res.json();
+
+        if (result.success) {
+            revalidateTag("tr", { expire: 0 });
+            revalidateTag("tr", { expire: 0 });
+        }
+
+        return result;
     } catch (error) {
 
     }

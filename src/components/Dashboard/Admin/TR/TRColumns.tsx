@@ -73,7 +73,7 @@ export const TRColumns: Column<TTRResponse>[] = [
             <span className="text-sm">
                 {transaction.isOfficeDelivery
                     ? "Office Delivery"
-                    : "Self Pickup"}
+                    : "Home Delivery"}
             </span>
         ),
         sortKey: "isOfficeDelivery",

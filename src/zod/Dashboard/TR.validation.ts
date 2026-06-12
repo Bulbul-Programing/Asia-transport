@@ -1,6 +1,6 @@
 import z from "zod";
 
-const createTRValidationSchema = z.object({
+export const createTRValidationSchema = z.object({
     TRID: z
         .string()
         .min(1, { message: "TRID is required" }),

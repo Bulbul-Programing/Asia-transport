@@ -1,4 +1,3 @@
-import TRManagementHeader from '@/components/Dashboard/Admin/TR/TRManagementHeader';
 import TRPage from '@/components/Dashboard/Admin/TR/TRPage';
 
 const page = async ({

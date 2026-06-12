@@ -8,8 +8,10 @@ import { toast } from 'sonner';
 import { deleteTR } from '@/service/Dashboard/TR/TRManagement';
 import DeleteConfirmationDialog from '@/components/Shared/DeleteConfirmationDialog';
 import TRViewDetailDialog from './TRViewDetailDialog';
+import TRFormDialog from './TRFormDialog';
+import { TShop } from '@/types/Dashboard/ShopType';
 
-const AllTR = ({ TRS }: { TRS: TTRResponse[] }) => {
+const AllTR = ({ TRS, shops }: { TRS: TTRResponse[], shops: TShop[] }) => {
     const router = useRouter();
     const [, startTransition] = useTransition();
     const [deletingTR, setDeletingTR] = useState<TTRResponse | null>(null);
@@ -59,6 +61,18 @@ const AllTR = ({ TRS }: { TRS: TTRResponse[] }) => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 getRowKey={(tr) => tr.id}
+            />
+
+            <TRFormDialog
+                key={editTR?.id ?? "new"}
+                open={!!editTR}
+                onClose={() => setEditTR(null)}
+                shops={shops}
+                TR={editTR!}
+                onSuccess={() => {
+                    setEditTR(null);
+                    handleRefresh();
+                }}
             />
 
             <TRViewDetailDialog

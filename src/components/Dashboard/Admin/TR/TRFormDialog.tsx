@@ -1,6 +1,5 @@
 'use client'
 
-import InputFieldError from "@/components/Shared/InputFieldError";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
@@ -12,8 +11,8 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { cn } from "@/lib/utils";
 import { createTR, updateTR } from "@/service/Dashboard/TR/TRManagement";
 import { TShop } from "@/types/Dashboard/ShopType";
-import { TRPayload, TTR } from "@/types/Dashboard/TRType";
-import { Check, ChevronsUpDown, Eye, Trash2 } from "lucide-react";
+import { TRPayload, TTRResponse } from "@/types/Dashboard/TRType";
+import { Check, ChevronsUpDown, Eye } from "lucide-react";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import StagedTRsModal from "./submittedTR";
@@ -23,12 +22,13 @@ interface ITRFormDialogProps {
     onClose: () => void;
     onSuccess: () => void;
     shops: TShop[];
-    TR?: TTR;
+    TR?: TTRResponse;
 }
 
 const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProps) => {
     const formRef = useRef<HTMLFormElement>(null);
     const submitFormRef = useRef<HTMLFormElement>(null);
+    const updateSubmitFormRef = useRef<HTMLFormElement>(null)
     const isEdit = !!TR;
     // Add inside TRFormDialog, alongside other useState hooks
     const [stagedModalOpen, setStagedModalOpen] = useState(false);
@@ -42,7 +42,9 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
     // ── shop combobox ──────────────────────────────────────────────
     const [openCombo, setOpenCombo] = useState(false);
     const [shopQuery, setShopQuery] = useState("");
-    const [selectedShop, setSelectedShop] = useState<TShop | null>(null);
+    const existingShop = TR ? shops.find((shop) => shop.shopName === TR.shopName) ?? null : null;
+
+    const [selectedShop, setSelectedShop] = useState<TShop | null>(existingShop);
 
     const filteredShops = shops.filter((shop) =>
         shop.shopName.toLowerCase().includes(shopQuery.toLowerCase())
@@ -52,15 +54,18 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const [openDate, setOpenDate] = useState(false);
-    const [date, setDate] = useState<Date | undefined>(yesterday);
+    const [date, setDate] = useState<Date | undefined>(TR?.bookingDate ? new Date(TR.bookingDate) : yesterday);
 
-    // ── staged TRs (local, not yet in DB) ─────────────────────────
+    // ── staged TRs (local, not yet in DB) ────────────────────────
     const [pendingTRs, setPendingTRs] = useState<TRPayload[]>([]);
+
+    // update information 
+    const updateTRDataRef = useRef<TRPayload | undefined>(undefined);
 
     // ── server action for bulk create ──────────────────────────────
     //    For edit mode you still use the single-TR path
     const [state, formAction, pending] = useActionState(
-        isEdit ? updateTR.bind(null, TR!.id) : createTR,
+        isEdit ? updateTR.bind(null, TR!.TRID) : createTR,
         null
     );
     const prevStateRef = useRef(state);
@@ -116,6 +121,40 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
         setDate(yesterday);
     };
 
+    const handleUpdateTR = () => {
+        if (!formRef.current) return;
+        const data = new FormData(formRef.current);
+
+        const entry: TRPayload = {
+            TRID: data.get("TRID") as string,
+            shopName: selectedShop?.shopName || shopQuery || "",
+            quantity: Number(data.get("quantity") as string),
+            paymentStatus: data.get("paymentStatus") === "true",
+            taka: Number(data.get("taka") as string),
+            bookingDate: date ?? new Date(),
+            isOfficeDelivery: data.get("isOfficeDelivery") === "true",
+            note: (data.get("note") as string) || undefined,
+        };
+
+        if (!entry.TRID || !entry.shopName || !entry.quantity) {
+            toast.error("TRID, shop name and quantity are required");
+            return;
+        }
+
+        // Set ref synchronously, then submit
+        updateTRDataRef.current = entry;
+
+        // Directly update the hidden input value before submitting
+        const hiddenInput = updateSubmitFormRef.current?.querySelector<HTMLInputElement>(
+            'input[name="updateTRsJson"]'
+        );
+        if (hiddenInput) {
+            hiddenInput.value = JSON.stringify(entry);
+        }
+
+        updateSubmitFormRef.current?.requestSubmit();
+    }
+
     // ── "Submit all" — inject JSON into hidden input & fire action ─
     const handleSubmitAll = () => {
         if (pendingTRs.length === 0) {
@@ -163,7 +202,7 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
 
                         <Field>
                             <FieldLabel>TRID</FieldLabel>
-                            <Input name="TRID" type="number" placeholder="TRID" />
+                            <Input name="TRID" type="number" placeholder="TRID" defaultValue={TR ? TR.TRID : ""} />
                         </Field>
 
                         <Field>
@@ -219,12 +258,12 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
 
                         <Field>
                             <FieldLabel>Quantity</FieldLabel>
-                            <Input name="quantity" type="number" placeholder="Quantity" />
+                            <Input name="quantity" type="number" placeholder="Quantity" defaultValue={TR ? TR.quantity : 0} />
                         </Field>
 
                         <Field>
                             <FieldLabel>Payment status</FieldLabel>
-                            <Select name="paymentStatus" defaultValue="false">
+                            <Select name="paymentStatus" defaultValue={(TR && TR.paymentStatus ? "true" : "false")}>
                                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
@@ -238,7 +277,7 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
 
                         <Field>
                             <FieldLabel>Taka</FieldLabel>
-                            <Input name="taka" type="number" placeholder="Taka" />
+                            <Input name="taka" type="number" placeholder="Taka" defaultValue={TR ? TR.taka : 0} />
                         </Field>
 
                         <Field>
@@ -264,7 +303,7 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
 
                         <Field>
                             <FieldLabel>Office Delivery</FieldLabel>
-                            <Select name="isOfficeDelivery" defaultValue="false">
+                            <Select name="isOfficeDelivery" defaultValue={(TR && TR.isOfficeDelivery ? "true" : "false")}>
                                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectGroup>
@@ -278,7 +317,7 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
 
                         <Field>
                             <FieldLabel>Note</FieldLabel>
-                            <textarea name="note" placeholder="Note" className="w-full rounded-md border p-2" />
+                            <textarea name="note" placeholder="Note" className="w-full rounded-md border p-2" defaultValue={TR ? TR.note as string : ""} />
                         </Field>
                     </form>
 
@@ -289,6 +328,13 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
                             type="hidden"
                             name="trsJson"
                             value={JSON.stringify(pendingTRs)}
+                        />
+                    </form>
+                    <form ref={updateSubmitFormRef} action={formAction} className="hidden">
+                        <input
+                            type="hidden"
+                            name="updateTRsJson"
+                            defaultValue=""   // value is set imperatively before submit
                         />
                     </form>
 
@@ -302,21 +348,30 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
 
                     {/* Add current fields to staged list */}
                     {!isEdit && (
-                        <Button type="button" variant="secondary" onClick={handleAddTR} disabled={pending}>
-                            + Add TR
-                        </Button>
+                        <div>
+                            <Button type="button" variant="secondary" onClick={handleAddTR} disabled={pending}>
+                                + Add TR
+                            </Button>
+                            {/* Submit everything to DB */}
+                            <Button
+                                type="button"
+                                onClick={handleSubmitAll}
+                                disabled={pending || (pendingTRs.length === 0)}
+                            >
+                                {pending
+                                    ? "Creating..."
+                                    : `Submit ${pendingTRs.length > 0 ? `(${pendingTRs.length})` : ""}`}
+                            </Button>
+                        </div>
                     )}
 
-                    {/* Submit everything to DB */}
-                    <Button
-                        type="button"
-                        onClick={isEdit ? () => submitFormRef.current?.requestSubmit() : handleSubmitAll}
-                        disabled={pending || (!isEdit && pendingTRs.length === 0)}
-                    >
-                        {pending
-                            ? isEdit ? "Updating..." : "Creating..."
-                            : isEdit ? "Update TR" : `Submit ${pendingTRs.length > 0 ? `(${pendingTRs.length})` : ""}`}
-                    </Button>
+                    {isEdit && (
+                        <Button type="button" variant="default" onClick={handleUpdateTR} disabled={pending}>
+                            {pending
+                                ? "Updating..."
+                                : "Update TR"}
+                        </Button>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

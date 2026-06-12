@@ -19,7 +19,7 @@ const TRPage = async ({ searchObj }: { searchObj: any }) => {
         <div className='space-y-5'>
             <TRManagementHeader shops={shops.data} />
             <TRSearch />
-            <AllTR TRS={TRS?.data?.data} />
+            <AllTR TRS={TRS?.data?.data} shops={shops.data}/>
             <TablePagination
                 currentPage={TRS?.data?.meta?.page || 1}
                 totalPages={totalPages || 1}
