@@ -166,7 +166,7 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
-            <DialogContent className="max-h-[90vh] flex flex-col p-0 max-w-2xl">
+            <DialogContent className="max-h-[90vh] flex flex-col p-0 lg:min-w-lg md:max-w-2xl">
                 <DialogHeader className="px-6 pt-6 pb-4">
                     <DialogTitle>{isEdit ? "Update TR" : "Create TR"}</DialogTitle>
                 </DialogHeader>

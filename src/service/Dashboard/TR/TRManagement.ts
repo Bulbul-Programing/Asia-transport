@@ -90,9 +90,7 @@ export const createTR = async (_prevState: unknown, formData: FormData): Promise
 
 export const updateTR = async (TRID: string, _currentStatus: any, formData: FormData): Promise<any> => {
     try {
-        console.log(TRID);
         const raw = formData.get("updateTRsJson");
-        console.log(raw);
         if (!raw || typeof raw !== "string") {
             return { success: false, message: "No TR data received" };
         }
@@ -131,6 +129,43 @@ export const updateTR = async (TRID: string, _currentStatus: any, formData: Form
             revalidateTag("tr", { expire: 0 });
         }
 
+        return result;
+    } catch (error) {
+
+    }
+}
+
+export const updateCollection = async (_prevState: unknown, formData: FormData): Promise<any> => {
+    try {
+        const raw = formData.get("collectionTR");
+        if (!raw || typeof raw !== "string") {
+            return { success: false, message: "No TR data received" };
+        }
+
+        let trs: number[];
+        try {
+            trs = JSON.parse(raw);
+        } catch {
+            return { success: false, message: "Invalid TR data" };
+        }
+
+        const payload = {
+            TRIDS: trs
+        }
+
+        const res = await serverFetch.patch(`/tr/updatePaymentStatus`, {
+            body: JSON.stringify(payload),
+            headers: {
+                "Content-Type": "application/json",
+            }
+        })
+
+        const result = await res.json();
+
+        if (result.success) {
+            revalidateTag("tr", { expire: 0 });
+            revalidateTag("tr", { expire: 0 });
+        }
         return result;
     } catch (error) {
 

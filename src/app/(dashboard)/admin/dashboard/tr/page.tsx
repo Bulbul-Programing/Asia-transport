@@ -1,4 +1,6 @@
 import TRPage from '@/components/Dashboard/Admin/TR/TRPage';
+import TRPageSkeleton from '@/skeleton/TR/TRPageSkeleton';
+import { Suspense } from 'react';
 
 const page = async ({
     searchParams,
@@ -9,7 +11,10 @@ const page = async ({
 
     return (
         <div>
-            <TRPage searchObj={searchParamsObj}/>
+            <Suspense fallback={<TRPageSkeleton />}>
+                <TRPage searchObj={searchParamsObj} />
+            </Suspense>
+
         </div>
     );
 };
