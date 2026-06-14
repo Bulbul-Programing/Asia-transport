@@ -3,6 +3,7 @@ import ManagementPageHeader from '@/components/Shared/ManagementPageHeader';
 import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import DailyExpenseFormDialog from './DailyExpenseFormDialog';
 
 
 const DCManagementHeader = () => {
@@ -29,6 +30,12 @@ const DCManagementHeader = () => {
     };
     return (
         <div>
+            <DailyExpenseFormDialog 
+                onClose={handleCloseDialog}
+                onSuccess={handleSuccess}
+                open={isDialogOpen}
+            />
+
             <ManagementPageHeader
                 title="Daily Collection Management"
                 description="Manage all Collection."

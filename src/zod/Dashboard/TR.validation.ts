@@ -20,7 +20,7 @@ export const createTRValidationSchema = z.object({
 
     bookingDate: z.coerce.date(),
 
-    isOfficeDelivery: z.boolean(),
+    isOfficeDelivery: z.boolean().default(false),
 
     note: z
         .string()

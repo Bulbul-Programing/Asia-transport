@@ -30,6 +30,8 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
     const submitFormRef = useRef<HTMLFormElement>(null);
     const updateSubmitFormRef = useRef<HTMLFormElement>(null)
     const isEdit = !!TR;
+    const [comboValue, setComboValue] = useState("");
+
     // Add inside TRFormDialog, alongside other useState hooks
     const [stagedModalOpen, setStagedModalOpen] = useState(false);
     // handlers to pass down
@@ -58,6 +60,7 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
 
     // ── staged TRs (local, not yet in DB) ────────────────────────
     const [pendingTRs, setPendingTRs] = useState<TRPayload[]>([]);
+    const [lastTR, setLastTR] = useState('')
 
     // update information 
     const updateTRDataRef = useRef<TRPayload | undefined>(undefined);
@@ -114,6 +117,9 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
             return;
         }
 
+
+        const lastTRString = Number(entry.TRID) + 1
+        setLastTR(lastTRString.toString())
         setPendingTRs((prev) => [...prev, entry]);
         formRef.current.reset();
         setShopQuery("");
@@ -202,7 +208,7 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
 
                         <Field>
                             <FieldLabel>TRID</FieldLabel>
-                            <Input name="TRID" type="number" placeholder="TRID" defaultValue={TR ? TR.TRID : ""} />
+                            <Input name="TRID" type="number" placeholder="TRID" defaultValue={TR ? TR.TRID : lastTR} />
                         </Field>
 
                         <Field>
@@ -215,13 +221,32 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-full p-0">
-                                    <Command shouldFilter={false}>
+                                    <Command
+                                        shouldFilter={false}
+                                        value={comboValue}
+                                        onValueChange={setComboValue}
+                                    >
                                         <CommandInput
                                             placeholder="Search or type new shop..."
                                             value={shopQuery}
                                             onValueChange={(value) => {
                                                 setShopQuery(value);
                                                 setSelectedShop(null);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" && filteredShops.length > 0) {
+                                                    // Find the highlighted item — cmdk adds data-selected="true"
+                                                    const highlighted = filteredShops.find((shop) =>
+                                                        shop.shopName.toLowerCase() === shopQuery.toLowerCase()
+                                                    ) ?? filteredShops[0]; // fallback to first if no exact match
+
+                                                    if (highlighted) {
+                                                        setSelectedShop(highlighted);
+                                                        setShopQuery(highlighted.shopName);
+                                                        setOpenCombo(false);
+                                                        e.preventDefault();
+                                                    }
+                                                }
                                             }}
                                         />
                                         <CommandEmpty>
@@ -231,7 +256,7 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
                                             {filteredShops.map((shop) => (
                                                 <CommandItem
                                                     key={shop.id}
-                                                    value={shop.shopName}
+                                                    value={shop.shopName}      
                                                     onSelect={() => {
                                                         setSelectedShop(shop);
                                                         setShopQuery(shop.shopName);
@@ -299,25 +324,6 @@ const TRFormDialog = ({ open, onClose, onSuccess, TR, shops }: ITRFormDialogProp
                                     />
                                 </PopoverContent>
                             </Popover>
-                        </Field>
-
-                        <Field>
-                            <FieldLabel>Office Delivery</FieldLabel>
-                            <Select name="isOfficeDelivery" defaultValue={(TR && TR.isOfficeDelivery ? "true" : "false")}>
-                                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectLabel>Office Delivery</SelectLabel>
-                                        <SelectItem value="true">Office Delivery</SelectItem>
-                                        <SelectItem value="false">Home Delivery</SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                        </Field>
-
-                        <Field>
-                            <FieldLabel>Note</FieldLabel>
-                            <textarea name="note" placeholder="Note" className="w-full rounded-md border p-2" defaultValue={TR ? TR.note as string : ""} />
                         </Field>
                     </form>
 

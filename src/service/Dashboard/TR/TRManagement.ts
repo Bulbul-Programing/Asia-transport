@@ -62,6 +62,8 @@ export const createTR = async (_prevState: unknown, formData: FormData): Promise
                 })
             }
         }
+        validatedPayload.data.isOfficeDelivery = false
+        validatedPayload.data.note = ""
 
         const res = await serverFetch.post("/tr/multiple", {
             body: JSON.stringify(validatedPayload.data),
