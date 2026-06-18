@@ -61,6 +61,7 @@ const AllTR = ({ TRS, shops }: { TRS: TTRResponse[], shops: TShop[] }) => {
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 getRowKey={(tr) => tr.id}
+                
             />
 
             <TRFormDialog

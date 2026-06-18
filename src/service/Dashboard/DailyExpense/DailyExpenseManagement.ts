@@ -4,6 +4,7 @@
 import { serverFetch } from "@/lib/server-fetch";
 import { zodValidator } from "@/lib/zodValidator";
 import { createDailyExpenseSchema, createPartyLesSchema, updateDailyExpenseSchema, updatePartyLesSchema } from "@/zod/Dashboard/dailyExpanse";
+import { revalidateTag } from "next/cache";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,32 +40,49 @@ const extractPartyLesFields = (formData: FormData) => ({
     note: formData.get("note"),
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-//  DAILY EXPENSE
-// ═════════════════════════════════════════════════════════════════════════════
-
-// ── CREATE ────────────────────────────────────────────────────────────────────
 export const createDailyExpense = async (
     _currentState: any,
     formData: FormData
 ): Promise<any> => {
     try {
         const rawPayload = extractDailyExpenseFields(formData);
-            console.log(rawPayload);
-        // Client-side Zod validation
-        const validation = zodValidator(rawPayload, createDailyExpenseSchema);
+        const partyLessRaw = formData.get("partyLess");
+
+        const partyLess = partyLessRaw
+            ? JSON.parse(partyLessRaw as string)
+            : [];
+
+        const dataForValidate = {
+            ...rawPayload,
+            partyLess,
+        };
+
+        const validation = zodValidator(
+            dataForValidate,
+            createDailyExpenseSchema
+        );
+        console.log(validation);
         if (!validation.success) return validation;
 
-        const res = await serverFetch.post("/daily-expense", {
+        const res = await serverFetch.post("/dailyExpense", {
             body: JSON.stringify(validation.data),
             headers: { "Content-Type": "application/json" },
         });
 
         const result = await res.json();
+
+        if (result.success) {
+            revalidateTag("dailyCollection", { expire: 0 });
+            revalidateTag("dailyExpense", { expire: 0 })
+        }
+
         return result;
+
     } catch (error: any) {
         if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error;
+
         console.error("[createDailyExpense]", error);
+
         return {
             success: false,
             message:
@@ -76,11 +94,11 @@ export const createDailyExpense = async (
 };
 
 // ── GET ALL (with query params for filtering / pagination) ────────────────────
-export const getAllDailyExpenses = async (query?: Record<string, string>): Promise<any> => {
+export const getAllDailyExpenses = async (queryString?: string): Promise<any> => {
     try {
-        const params = query ? "?" + new URLSearchParams(query).toString() : "";
+        const params = queryString ? "?" + new URLSearchParams(queryString).toString() : "";
 
-        const res = await serverFetch.get(`/daily-expense${params}`);
+        const res = await serverFetch.get(`/dailyExpense${params}`);
         const result = await res.json();
         return result;
     } catch (error: any) {

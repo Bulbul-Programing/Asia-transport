@@ -17,6 +17,16 @@ export const TRColumns: Column<TTRResponse>[] = [
         sortKey: "TRID",
     },
     {
+        header: "Booking Date",
+        accessor: (transaction) => (
+            <span className="text-sm" >
+                {new Date(transaction.bookingDate).toLocaleDateString()}
+            </span>
+        ),
+        sortKey: "bookingDate",
+        className: "text-center"
+    },
+    {
         header: "Shop Name",
         accessor: (transaction) => (
             <span className="text-sm">
@@ -47,25 +57,15 @@ export const TRColumns: Column<TTRResponse>[] = [
         header: "Payment Status",
         accessor: (transaction) => (
             <span
-                className={`text-sm font-medium ${
-                    transaction.paymentStatus
+                className={`text-sm font-medium ${transaction.paymentStatus
                         ? "text-green-600"
                         : "text-red-600"
-                }`}
+                    }`}
             >
                 {transaction.paymentStatus ? "Paid" : "Unpaid"}
             </span>
         ),
         sortKey: "paymentStatus",
-    },
-    {
-        header: "Booking Date",
-        accessor: (transaction) => (
-            <span className="text-sm">
-                {new Date(transaction.bookingDate).toLocaleDateString()}
-            </span>
-        ),
-        sortKey: "bookingDate",
     },
     {
         header: "Delivery",

@@ -6,6 +6,7 @@ export type TDailyExpensePayload = {
     officeCost: number;
 
     // optional
+    partyLes?: number;
     carRent?: number | null;
     carNumber?: number | null;
     vanRepair?: number | null;

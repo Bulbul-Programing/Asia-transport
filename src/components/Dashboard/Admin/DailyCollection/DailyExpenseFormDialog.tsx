@@ -1,13 +1,32 @@
 'use client'
 
+import InputFieldError from "@/components/Shared/InputFieldError";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle
+} from "@/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { createDailyExpense, updateDailyExpense } from "@/service/Dashboard/DailyExpense/DailyExpenseManagement";
-import { TDailyExpensePayload, TDailyExpenseResponse } from "@/types/Dashboard/TDailyExpence";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger
+} from "@/components/ui/popover";
+
+import {
+    createDailyExpense,
+    updateDailyExpense
+} from "@/service/Dashboard/DailyExpense/DailyExpenseManagement";
+
+import {
+    TDailyExpensePayload,
+    TDailyExpenseResponse
+} from "@/types/Dashboard/TDailyExpence";
+
 import { useActionState, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,7 +37,6 @@ interface IDailyExpenseFormDialogProps {
     expense?: TDailyExpenseResponse;
 }
 
-// Fields split into required and optional for cleaner rendering
 const REQUIRED_FIELDS: { name: keyof TDailyExpensePayload; label: string }[] = [
     { name: "labourSalary", label: "Labour Salary" },
     { name: "officeCost", label: "Office Cost" },
@@ -41,33 +59,50 @@ const OPTIONAL_FIELDS: { name: keyof TDailyExpensePayload; label: string }[] = [
     { name: "misc", label: "Miscellaneous" },
 ];
 
-const DailyExpenseFormDialog = ({ open, onClose, onSuccess, expense }: IDailyExpenseFormDialogProps) => {
-    const formRef = useRef<HTMLFormElement>(null);
-    const submitFormRef = useRef<HTMLFormElement>(null);
+type PartyLessItem = {
+    trid: string;
+    partyLesAmount: number;
+};
+
+const DailyExpenseFormDialog = ({
+    open,
+    onClose,
+    onSuccess,
+    expense
+}: IDailyExpenseFormDialogProps) => {
+
     const isEdit = !!expense;
 
-    // ── date picker ────────────────────────────────────────────────
+    // date
     const today = new Date();
     const [openDate, setOpenDate] = useState(false);
     const [date, setDate] = useState<Date | undefined>(
         expense?.date ? new Date(expense.date) : today
     );
 
-    // ── server action ──────────────────────────────────────────────
+    // party less state (MULTIPLE ITEMS)
+    const [partyLess, setPartyLess] = useState<PartyLessItem[]>([]);
+
+    const [trid, setTrid] = useState("");
+    const [partyLesAmount, setPartyLesAmount] = useState<number | "">("");
+
+    // server action
     const [state, formAction, pending] = useActionState(
-        isEdit ? updateDailyExpense.bind(null, expense!.id) : createDailyExpense,
+        isEdit
+            ? updateDailyExpense.bind(null, expense!.id)
+            : createDailyExpense,
         null
     );
+
     const prevStateRef = useRef(state);
 
-    // ── handle server response ─────────────────────────────────────
     useEffect(() => {
+        console.log(state);
         if (state === prevStateRef.current) return;
         prevStateRef.current = state;
 
         if (state?.success) {
             toast.success(state.message ?? (isEdit ? "Expense updated" : "Expense created"));
-            formRef.current?.reset();
             onSuccess();
             onClose();
         } else if (state && !state.success && state.message) {
@@ -76,134 +111,196 @@ const DailyExpenseFormDialog = ({ open, onClose, onSuccess, expense }: IDailyExp
     }, [state, onClose, onSuccess, isEdit]);
 
     const handleClose = () => {
-        formRef.current?.reset();
         onClose();
     };
 
-    const handleSubmit = () => {
-        if (!formRef.current) return;
-        const data = new FormData(formRef.current);
-
-        // Basic client-side guard
-        const labourSalary = data.get("labourSalary");
-        const officeCost = data.get("officeCost");
-        if (!labourSalary || !officeCost || !date) {
-            toast.error("Date, Labour Salary and Office Cost are required");
+    // ADD PARTY LESS ITEM
+    const handleAddPartyLess = () => {
+        if (!trid || !partyLesAmount) {
+            toast.error("Enter TR ID and Amount");
             return;
         }
 
-        // Inject date and fire the hidden form
-        const hiddenDateInput = submitFormRef.current?.querySelector<HTMLInputElement>(
-            'input[name="date"]'
-        );
-        if (hiddenDateInput) {
-            hiddenDateInput.value = date.toISOString();
+        const exists = partyLess.find((p) => p.trid === trid);
+        if (exists) {
+            toast.error("This TR already added");
+            return;
         }
 
-        // Copy all field values into the hidden form
-        const hiddenJsonInput = submitFormRef.current?.querySelector<HTMLInputElement>(
-            'input[name="expenseJson"]'
-        );
-        if (hiddenJsonInput) {
-            const payload: Partial<TDailyExpensePayload> = { date };
-            [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].forEach(({ name }) => {
-                const raw = data.get(name as string) as string;
-                if (raw !== "" && raw !== null) {
-                    (payload as Record<string, unknown>)[name as string] = Number(raw);
-                }
-            });
-            console.log("payload", payload);
-            hiddenJsonInput.value = JSON.stringify(payload);
-        }
+        setPartyLess((prev) => [
+            ...prev,
+            { trid, partyLesAmount: Number(partyLesAmount) }
+        ]);
 
-        submitFormRef.current?.requestSubmit();
+        setTrid("");
+        setPartyLesAmount("");
+    };
+
+    // REMOVE ITEM
+    const handleRemovePartyLess = (trid: string) => {
+        setPartyLess((prev) => prev.filter((p) => p.trid !== trid));
     };
 
     return (
-        <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
+        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
             <DialogContent className="max-h-[90vh] flex flex-col p-0 lg:min-w-lg md:max-w-2xl">
+
                 <DialogHeader className="px-6 pt-6 pb-4">
-                    <DialogTitle>{isEdit ? "Update Daily Expense" : "Create Daily Expense"}</DialogTitle>
+                    <DialogTitle>
+                        {isEdit ? "Update Daily Expense" : "Create Daily Expense"}
+                    </DialogTitle>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto px-6 space-y-4 pb-4">
-                    <form ref={formRef} className="space-y-4">
 
-                        {/* ── Date ── */}
+                    {/* MAIN FORM */}
+                    <form action={formAction} className="space-y-4">
+
+                        {/* DATE */}
                         <Field>
-                            <FieldLabel>Date <span className="text-destructive">*</span></FieldLabel>
+                            <FieldLabel>Date *</FieldLabel>
+
                             <Popover open={openDate} onOpenChange={setOpenDate}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" type="button" className="justify-start font-normal w-full">
+                                    <Button type="button" variant="outline" className="w-full">
                                         {date ? date.toLocaleDateString() : "Select date"}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+
+                                <PopoverContent className="p-0">
                                     <Calendar
                                         mode="single"
                                         selected={date}
-                                        defaultMonth={date}
-                                        captionLayout="dropdown"
-                                        required
-                                        onSelect={(d: Date) => { setDate(d); setOpenDate(false); }}
+                                        onSelect={(d) => {
+                                            setDate(d);
+                                            setOpenDate(false);
+                                        }}
                                     />
                                 </PopoverContent>
                             </Popover>
                         </Field>
 
-                        {/* ── Required numeric fields ── */}
+                        {/* REQUIRED FIELDS */}
                         {REQUIRED_FIELDS.map(({ name, label }) => (
                             <Field key={name as string}>
-                                <FieldLabel>{label} <span className="text-destructive">*</span></FieldLabel>
+                                <FieldLabel>{label} *</FieldLabel>
                                 <Input
                                     name={name as string}
                                     type="number"
                                     min={0}
-                                    step="0.01"
-                                    placeholder={`Enter ${label.toLowerCase()}`}
-                                    defaultValue={expense ? (expense[name as keyof TDailyExpenseResponse] as number) ?? "" : ""}
+                                    defaultValue={String(
+                                        expense?.[name as keyof TDailyExpenseResponse] ?? ""
+                                    )}
                                 />
                             </Field>
                         ))}
 
-                        {/* ── Optional numeric fields ── */}
-                        <div className="pt-2 border-t">
-                            <p className="text-sm text-muted-foreground mb-3">Optional expenses</p>
-                            <div className="space-y-4">
-                                {OPTIONAL_FIELDS.map(({ name, label }) => (
-                                    <Field key={name as string}>
-                                        <FieldLabel>{label}</FieldLabel>
-                                        <Input
-                                            name={name as string}
-                                            type="number"
-                                            min={0}
-                                            step="0.01"
-                                            placeholder={`Enter ${label.toLowerCase()}`}
-                                            defaultValue={expense ? (expense[name as keyof TDailyExpenseResponse] as number | null | undefined) ?? "" : ""}
-                                        />
-                                    </Field>
+                        {/* PARTY LESS SECTION */}
+                        <FieldGroup>
+                            <FieldLabel>Party Less</FieldLabel>
+
+                            <div className="flex gap-2 mt-2">
+                                <Input
+                                    value={trid}
+                                    onChange={(e) => setTrid(e.target.value)}
+                                    placeholder="TR ID"
+                                />
+
+                                <Input
+                                    value={partyLesAmount}
+                                    onChange={(e) =>
+                                        setPartyLesAmount(Number(e.target.value))
+                                    }
+                                    placeholder="Amount"
+                                    type="number"
+                                />
+
+                                <Button
+                                    type="button"
+                                    onClick={handleAddPartyLess}
+                                >
+                                    Add
+                                </Button>
+                            </div>
+
+                            {/* LIST */}
+                            <div className="mt-3 space-y-2">
+                                {partyLess.map((item) => (
+                                    <div
+                                        key={item.trid}
+                                        className="flex justify-between border p-2 rounded"
+                                    >
+                                        <span>
+                                            TR: {item.trid} | {item.partyLesAmount}
+                                        </span>
+
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            onClick={() =>
+                                                handleRemovePartyLess(item.trid)
+                                            }
+                                        >
+                                            Remove
+                                        </Button>
+                                    </div>
                                 ))}
                             </div>
+                        </FieldGroup>
+
+                        {/* OPTIONAL FIELDS */}
+                        <div className="pt-2 border-t space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                                Optional expenses
+                            </p>
+
+                            {OPTIONAL_FIELDS.map(({ name, label }) => (
+                                <Field key={name as string}>
+                                    <FieldLabel>{label}</FieldLabel>
+                                    <Input
+                                        name={name as string}
+                                        type="number"
+                                        min={0}
+                                        defaultValue={String(
+                                            expense?.[name as keyof TDailyExpenseResponse] ??
+                                            ""
+                                        )}
+                                    />
+                                </Field>
+                            ))}
+                        </div>
+
+                        {/* HIDDEN DATA */}
+                        <input
+                            type="hidden"
+                            name="date"
+                            value={date?.toISOString() ?? ""}
+                        />
+
+                        {/* SEND PARTY LESS JSON */}
+                        <input
+                            type="hidden"
+                            name="partyLess"
+                            value={JSON.stringify(partyLess)}
+                        />
+
+                        {/* ACTIONS */}
+                        <div className="flex justify-end gap-2 border-t pt-4">
+                            <Button type="button" variant="outline" onClick={handleClose}>
+                                Cancel
+                            </Button>
+
+                            <Button type="submit" disabled={pending}>
+                                {pending
+                                    ? isEdit
+                                        ? "Updating..."
+                                        : "Creating..."
+                                    : isEdit
+                                        ? "Update Expense"
+                                        : "Create Expense"}
+                            </Button>
                         </div>
                     </form>
-
-                    {/* ── Hidden form that fires the server action ── */}
-                    <form ref={submitFormRef} action={formAction} className="hidden">
-                        <input type="hidden" name="date" defaultValue="" />
-                        <input type="hidden" name="expenseJson" defaultValue="" />
-                    </form>
-                </div>
-
-                {/* ── Footer ── */}
-                <div className="flex justify-end gap-2 px-6 py-4 border-t">
-                    <Button type="button" variant="outline" onClick={handleClose} disabled={pending}>
-                        Cancel
-                    </Button>
-                    <Button type="button" onClick={handleSubmit} disabled={pending}>
-                        {pending
-                            ? isEdit ? "Updating..." : "Creating..."
-                            : isEdit ? "Update Expense" : "Create Expense"}
-                    </Button>
                 </div>
             </DialogContent>
         </Dialog>

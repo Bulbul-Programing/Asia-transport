@@ -5,8 +5,8 @@ import TRCollection from './TRCollection';
 
 const TRSearch = () => {
     return (
-        <div className='flex items-center justify-between w-full'>
-            <div className="flex items-center gap-3">
+        <div className='flex flex-wrap items-center justify-between w-full gap-y-5'>
+            <div className="flex flex-wrap items-center gap-3">
                 <SearchFilter paramName="searchTerm" placeholder="Search TR..." />
                 <RefreshButton />
                 <DateSearch />

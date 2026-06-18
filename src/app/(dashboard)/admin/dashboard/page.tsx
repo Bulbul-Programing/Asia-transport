@@ -1,9 +1,15 @@
+import AdminDashboardPage from '@/components/Dashboard/DashboardHome/AdminDashboardPage';
 import React from 'react';
 
-const page = () => {
+const page = async ({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) => {
+    const searchParamsObj = await searchParams;
     return (
         <div>
-            Welcome to dashboard
+            <AdminDashboardPage searchObj={searchParamsObj} />
         </div>
     );
 };
